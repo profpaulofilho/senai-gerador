@@ -6,52 +6,39 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/api/gerar', async (req, res) => {
-  console.log('Content-Type:', req.headers['content-type']);
-  console.log('Body keys:', Object.keys(req.body || {}));
-  console.log('Prompt length:', (req.body?.prompt || '').length);
   const { prompt } = req.body || {};
   if (!prompt) return res.status(400).json({ error: 'Prompt não informado' });
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'Chave ANTHROPIC_API_KEY não configurada.' });
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'Chave GEMINI_API_KEY não configurada.' });
 
-  console.log('Chamando API Anthropic...');
-  console.log('Modelo: claude-sonnet-4-20250514');
-  console.log('Prompt length:', prompt.length);
+  console.log('Chamando API Gemini... Prompt:', prompt.length, 'chars');
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 6000,
-        messages: [{ role: 'user', content: prompt }]
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 8192, temperature: 0.7 }
       })
     });
 
-    console.log('Status da API:', response.status);
+    console.log('Status Gemini:', response.status);
 
-    if (response.status === 429) {
-      return res.status(429).json({ error: 'Muitas requisições. Aguarde 1 minuto.' });
-    }
+    if (response.status === 429) return res.status(429).json({ error: 'Muitas requisições. Aguarde 1 minuto.' });
 
     if (!response.ok) {
       const errBody = await response.text();
-      console.error('Erro API Anthropic:', response.status, errBody);
-      return res.status(response.status).json({ 
-        error: `Erro na API: ${response.status}`,
-        detail: errBody
-      });
+      console.error('Erro Gemini:', response.status, errBody);
+      return res.status(response.status).json({ error: `Erro na API: ${response.status}`, detail: errBody });
     }
 
     const data = await response.json();
-    console.log('Resposta OK — tokens usados:', data.usage?.output_tokens);
-    res.json(data);
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    res.json({ content: [{ type: 'text', text }] });
 
   } catch (err) {
     console.error('Erro interno:', err.message);
