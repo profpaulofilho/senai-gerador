@@ -6,7 +6,10 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/api/gerar', async (req, res) => {
-  const { prompt } = req.body;
+  console.log('Content-Type:', req.headers['content-type']);
+  console.log('Body keys:', Object.keys(req.body || {}));
+  console.log('Prompt length:', (req.body?.prompt || '').length);
+  const { prompt } = req.body || {};
   if (!prompt) return res.status(400).json({ error: 'Prompt não informado' });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
