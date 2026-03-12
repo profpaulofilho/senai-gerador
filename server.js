@@ -24,7 +24,7 @@ app.post('/api/gerar', async (req, res) => {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-mini',
+        model: 'gpt-4.1',
         input: prompt,
         temperature: 0.7,
         max_output_tokens: 8192
