@@ -9,35 +9,52 @@ app.post('/api/gerar', async (req, res) => {
   const { prompt } = req.body || {};
   if (!prompt) return res.status(400).json({ error: 'Prompt não informado' });
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'Chave GEMINI_API_KEY não configurada.' });
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'Chave OPENAI_API_KEY não configurada.' });
+  }
 
-  console.log('Chamando API Gemini... Prompt:', prompt.length, 'chars');
+  console.log('Chamando API OpenAI... Prompt:', prompt.length, 'chars');
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
+    const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 8192, temperature: 0.7 }
+        model: 'gpt-4.1-mini',
+        input: prompt,
+        temperature: 0.7,
+        max_output_tokens: 8192
       })
     });
 
-    console.log('Status Gemini:', response.status);
+    console.log('Status OpenAI:', response.status);
 
-    if (response.status === 429) return res.status(429).json({ error: 'Muitas requisições. Aguarde 1 minuto.' });
+    if (response.status === 429) {
+      return res.status(429).json({ error: 'Muitas requisições. Tente novamente em instantes.' });
+    }
 
     if (!response.ok) {
       const errBody = await response.text();
-      console.error('Erro Gemini:', response.status, errBody);
-      return res.status(response.status).json({ error: `Erro na API: ${response.status}`, detail: errBody });
+      console.error('Erro OpenAI:', response.status, errBody);
+      return res.status(response.status).json({
+        error: `Erro na API: ${response.status}`,
+        detail: errBody
+      });
     }
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    const text =
+      data.output_text ||
+      data.output?.map(item =>
+        item.content?.map(part => part.text || '').join('')
+      ).join('\n') ||
+      '';
+
     res.json({ content: [{ type: 'text', text }] });
 
   } catch (err) {
