@@ -39,7 +39,9 @@ app.post('/api/gerar', async (req, res) => {
 
     if (!response.ok) {
       const err = await response.text();
-      return res.status(response.status).json({ error: `Erro na API: ${response.status}` });
+      const errBody = await response.text();
+console.error('API Error:', response.status, errBody);
+return res.status(response.status).json({ error: `Erro na API: ${response.status} - ${errBody}` });
     }
 
     const data = await response.json();
